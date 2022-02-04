@@ -1,37 +1,65 @@
 import { countryCodes, defaultSelectedCountries } from './data';
 import { compareValues } from './util';
 
+export const getCountryCheckboxes = () => {
+  const checkboxContainer = document.querySelector('#countryCheckboxes');
+  return checkboxContainer.querySelectorAll('pk-checkbox') as NodeListOf<HTMLPkCheckboxElement>;
+};
+
 function getCheckedCheckboxes() {
-  const activeCheckboxes = document.querySelectorAll(
-    'pk-checkbox',
-  ) as NodeListOf<HTMLPkCheckboxElement>;
+  const checkboxes = getCountryCheckboxes();
   const list: HTMLPkCheckboxElement[] = [];
-  activeCheckboxes.forEach((ac) => {
+  checkboxes.forEach((ac) => {
     if (ac.checked) list.push(ac);
   });
   return list;
 }
-export const makeCountryChips = () => {
+
+export const toggleCheckboxes = async (check: boolean) => {
+  if (check) {
+    const sidePanel = document.querySelector('pk-side-panel');
+    await sidePanel.toggle();
+  }
+  const checkboxes = getCountryCheckboxes();
+  checkboxes.forEach((cb) => (cb.checked = check));
+};
+
+export const makeCountryAvatars = () => {
   const pkChip = document.querySelector('#pk-codes-chips');
-  pkChip.textContent = '';
-  const activeCheckboxes = getCheckedCheckboxes();
-  activeCheckboxes.forEach((ac) => {
-    const chip = document.createElement('pk-chip');
-    chip.style.fontSize = 'var(--pk-font-size-xs2';
-    chip.style.border = '0.4px var(--pk-interaction) solid';
-    chip.style.borderRadius = '50%';
-    chip.style.margin = 'var(--pk-spacing-xxs)';
-    chip.style.padding = 'var(--pk-spacing-xxs)';
-    chip.textContent = ac.value;
-    pkChip.appendChild(chip);
-  });
+  const checkboxes = getCountryCheckboxes();
+  const ch: Node[] = [];
+  for (let index = 0; index < checkboxes.length; index++) {
+    const ac = checkboxes[index];
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('icon-wrapper');
+    wrapper.dataset.countryValue = ac.value;
+    if (!defaultSelectedCountries.includes(ac.value)) wrapper.style.display = 'none';
+    const container = document.createElement('div');
+    container.classList.add('icon-container', 'pk-flex--column');
+    const chip = document.createElement('pk-avatar');
+    chip.type = 'image';
+    chip.size = 48;
+    chip.style.padding = 'var(--pk-spacing-xs2)';
+    chip.src = `http://purecatamphetamine.github.io/country-flag-icons/3x2/${ac.value}.svg`;
+    chip.title = ac.value;
+    const code = document.createElement('span');
+    code.textContent = ac.value;
+    container.append(chip, code);
+    wrapper.appendChild(container);
+    ch.push(wrapper);
+  }
+  pkChip.append(...ch);
 };
 
 const setupCheckboxEventListeners = () => {
-  const checkboxContainer = document.querySelector('#countryCheckboxes');
-  const checkboxes = checkboxContainer.querySelectorAll('pk-checkbox');
+  const checkboxes = getCountryCheckboxes();
   checkboxes.forEach((ck) => {
-    ck.addEventListener('checkboxChange', makeCountryChips);
+    ck.addEventListener('checkboxChange', (event: CustomEvent<{ isChecked: boolean }>) => {
+      const pkAvatar = document
+        .querySelector('#pk-codes-chips')
+        .querySelector(`div[data-country-value="${(event.target as HTMLPkCheckboxElement).value}"]`) as HTMLElement;
+      pkAvatar.style.display = event.detail.isChecked ? 'block' : 'none';
+    });
   });
 };
 
@@ -68,17 +96,15 @@ export const createCountryCheckboxes = () => {
     checkboxContainer.appendChild(id);
   });
   setupCheckboxEventListeners();
+  makeCountryAvatars();
 };
 
-export const updateCustomInput = (
-  event: CustomEvent<{ item: HTMLPkMenuItemElement }>,
-  selectorID: string,
-) => {
+/** inputs section */
+export const updateCustomInput = (event: CustomEvent<{ item: HTMLPkMenuItemElement }>, selectorID: string) => {
   const tE = event.target as HTMLElement;
   for (let i = 0; i < tE.children.length; i += 1) {
     const child = tE.children[i];
-    if (child.tagName.toLowerCase() === 'pk-menu-item')
-      tE.children[i].setAttribute('selected', 'false');
+    if (child.tagName.toLowerCase() === 'pk-menu-item') tE.children[i].setAttribute('selected', 'false');
   }
 
   const targetElement = event.detail.item;
@@ -94,18 +120,12 @@ export const updateCustomInput = (
 
 export const extractInputData = () => {
   //get values from inputs
-  const inputValue = document
-    .querySelector<HTMLInputElement>('#competitionId')
-    .getAttribute('pk-value');
+  const inputValue = document.querySelector<HTMLInputElement>('#competitionId').getAttribute('pk-value');
   const inputCountryCodes = getCheckedCheckboxes().map((p) => p.value);
-  const baseUrl = document
-    .querySelector<HTMLInputElement>('#baseUrl')
-    .getAttribute('pk-value');
+  const baseUrl = document.querySelector<HTMLInputElement>('#baseUrl').getAttribute('pk-value');
   const competitionIdArray = [inputValue].filter(Boolean);
 
-  const countryCodesArray = inputCountryCodes
-    .map((cc) => cc.trim().toUpperCase())
-    .filter(Boolean);
+  const countryCodesArray = inputCountryCodes.map((cc) => cc.trim().toUpperCase()).filter(Boolean);
   return {
     cupArray: competitionIdArray,
     countries: countryCodesArray,
